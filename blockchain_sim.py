@@ -8,6 +8,7 @@ import os
 from decimal import *
 import pickle
 import random
+import matplotlib.pyplot as plt
 
 
 def get_min_transmission_times(adj_graph):
@@ -82,6 +83,9 @@ min_transmission_times = get_min_transmission_times(adj_graph)
 # print(max_time)
 # exit()
 
+mined_count_info = numpy.empty((0, num_miners + 1), int)
+mined_count = {miner: 0 for miner in range(num_miners)}
+
 # The fun part begins now
 
 getcontext().prec = 1000
@@ -122,7 +126,7 @@ while time <= max_time:
     for miner in rand_miners_list:
         if not mining_queue[miner]:
             continue
-        print("\nMiner {} attempting to mine block..".format(miner))
+        print("\nMiner {} attempting to mine block from the transactions {}".format(miner, mining_queue[miner]))
         rnd = int.from_bytes(os.urandom(8), byteorder="big") / ((1 << 64) - 1)
         if rnd < prob_mining_success[miner]:
             # Voila, mining is successful. However, a block gets added only if none of the transations contained in it have become part of a previous block.
@@ -136,6 +140,9 @@ while time <= max_time:
                     break
             if all_txs_are_new:
                 print("\nMined block is valid. Block added : {}".format(mining_queue[miner]))
+                mined_count[miner - num_nodes] += 1
+                new_row = [time] + [v for v in mined_count.values()]
+                mined_count_info = numpy.append(mined_count_info, numpy.array([new_row]), axis=0)
                 for tx in mining_queue[miner]:
                     mined_transactions.add(pickle.dumps(tx[:2]))
             mining_queue[miner] = []
@@ -143,3 +150,10 @@ while time <= max_time:
             print("\nMining unsuccessful")
 
     time += 1
+
+fig, ax = plt.subplots()
+for miner in range(num_miners):
+    ax.plot(mined_count_info[:, 0], mined_count_info[:, miner + 1], label="{} hashes per second".format(miners_hashes_per_second[miner + num_nodes]))
+ax.set(xlabel='Time (sec)', ylabel='No. of blocks mined', title='No. of blocks mined v/s Time')
+plt.legend(loc='best')
+plt.show()
