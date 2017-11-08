@@ -2,6 +2,37 @@
 # To cut the tedious part of configuring parameters, use indirection : <sample_input
 
 import numpy
+import math
+import heapq
+
+
+def getshortestpathlengths(adj_graph):
+    nvertices = numpy.shape(adj_graph)[0]
+    min_distances = numpy.full((nvertices, nvertices), math.inf)
+    for src in range(nvertices):
+        visited = [False for x in range(nvertices)]
+        min_distances[src][src] = int(0)
+        visited[src] = True
+        pq = [[0, src]]
+        heapq.heapify(pq)
+        while pq:
+            dist = pq[0][0]
+            vert = pq[0][1]
+            pq = pq[1:]
+            for j in range(nvertices):
+                if visited[j] or adj_graph[vert][j] == -1:
+                    continue
+                if min_distances[src][j] > dist + adj_graph[vert][j]:
+                    min_distances[src][j] = dist + adj_graph[vert][j]
+                    pq.append([min_distances[src][j], j])
+            heapq.heapify(pq)
+            visited[vert] = True
+    int_min_distances = numpy.zeros((nvertices, nvertices), dtype=int)
+    for i in range(nvertices):
+        for j in range(nvertices):
+            int_min_distances[i][j] = int(min_distances[i][j])
+    return int_min_distances
+
 
 print("---------------------")
 print("Blockchain Simulation")
@@ -32,6 +63,9 @@ print("\nFor each of the miners, enter the hashes producable per second, in inte
 for i in range(num_miners):
     miners_hashes_per_second.append(int(input()))
 
+min_distances = getshortestpathlengths(adj_graph)
+
 # print(adj_graph)
 # print(nodes_tx_interval)
 # print(miners_hashes_per_second)
+# print(min_distances)
