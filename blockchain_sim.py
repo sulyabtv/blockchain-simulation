@@ -95,6 +95,7 @@ avg_verification_time_info = numpy.empty((0, 2))
 total_verification_time = 0
 hash_success_rate_info = numpy.empty((0, num_miners + 1))
 hash_success_rate = {miner: [0, 0] for miner in range(num_miners)}
+valid_blocks_ratio_info = numpy.empty((0, num_miners + 1))
 
 # The fun part begins now
 
@@ -164,6 +165,13 @@ while time <= max_time:
             mining_queue[miner] = []
         else:
             print("\nMining unsuccessful")
+        new_row = [time]
+        for k, v in hash_success_rate.items():
+            if v[0] == 0:
+                new_row.append(0)
+            else:
+                new_row.append(mined_count[k] / v[0])
+        valid_blocks_ratio_info = numpy.append(valid_blocks_ratio_info, numpy.array([new_row]), axis=0)
     new_row = [time]
     for v in hash_success_rate.values():
         if v[1] == 0:
@@ -174,6 +182,8 @@ while time <= max_time:
 
     time_module.sleep(sleep_time)
     time += 1
+
+print("\nSimulation done. Displaying the plots.")
 
 fig, ax = plt.subplots()
 for miner in range(num_miners):
@@ -198,5 +208,12 @@ fig, ax = plt.subplots()
 for miner in range(num_miners):
     ax.plot(hash_success_rate_info[:, 0], hash_success_rate_info[:, miner + 1], label="{} hashes per second".format(miners_hashes_per_second[miner + num_nodes]))
 ax.set(xlabel='Time (sec)', ylabel='Hash success rate', title='Hash success rate v/s Time')
+plt.legend(loc='best')
+plt.show()
+
+fig, ax = plt.subplots()
+for miner in range(num_miners):
+    ax.plot(valid_blocks_ratio_info[:, 0], valid_blocks_ratio_info[:, miner + 1], label="{} hashes per second".format(miners_hashes_per_second[miner + num_nodes]))
+ax.set(xlabel='Time (sec)', ylabel='Ratio of valid blocks to blocks mined', title='Ratio of valid blocks to blocks mined v/s Time')
 plt.legend(loc='best')
 plt.show()
