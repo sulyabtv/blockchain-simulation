@@ -9,6 +9,7 @@ from decimal import *
 import pickle
 import random
 import matplotlib.pyplot as plt
+import time as time_module
 
 
 def get_min_transmission_times(adj_graph):
@@ -74,6 +75,9 @@ target_difficulty = int(input(), 16)
 print("\nEnter the time till which simulation is to be run in integer that denotes simulated seconds :")
 max_time = int(input())
 
+print("\nEnter the time to wait before simulating next second : ")
+sleep_time = int(input())
+
 min_transmission_times = get_min_transmission_times(adj_graph)
 
 # print(adj_graph)
@@ -85,6 +89,12 @@ min_transmission_times = get_min_transmission_times(adj_graph)
 
 mined_count_info = numpy.empty((0, num_miners + 1), int)
 mined_count = {miner: 0 for miner in range(num_miners)}
+tx_per_block_info = numpy.empty((0, 2))
+total_txs = 0
+avg_verification_time_info = numpy.empty((0, 2))
+total_verification_time = 0
+hash_success_rate_info = numpy.empty((0, num_miners + 1))
+hash_success_rate = {miner: [0, 0] for miner in range(num_miners)}
 
 # The fun part begins now
 
@@ -127,11 +137,13 @@ while time <= max_time:
         if not mining_queue[miner]:
             continue
         print("\nMiner {} attempting to mine block from the transactions {}".format(miner, mining_queue[miner]))
+        hash_success_rate[miner - num_nodes][1] += 1
         rnd = int.from_bytes(os.urandom(8), byteorder="big") / ((1 << 64) - 1)
         if rnd < prob_mining_success[miner]:
             # Voila, mining is successful. However, a block gets added only if none of the transations contained in it have become part of a previous block.
             # This is an oversimplification of the real scenario where the longest chain always wins, and needs to be improved.
             print("\nMining successful. Attempting to add block..")
+            hash_success_rate[miner - num_nodes][0] += 1
             all_txs_are_new = True
             for tx in mining_queue[miner]:
                 if pickle.dumps(tx[:2]) in mined_transactions:
@@ -143,17 +155,48 @@ while time <= max_time:
                 mined_count[miner - num_nodes] += 1
                 new_row = [time] + [v for v in mined_count.values()]
                 mined_count_info = numpy.append(mined_count_info, numpy.array([new_row]), axis=0)
+                total_txs += len(mining_queue[miner])
+                tx_per_block_info = numpy.append(tx_per_block_info, numpy.array([[time, total_txs / (numpy.shape(tx_per_block_info)[0] + 1)]]), axis=0)
+                total_verification_time += sum([time - tx[2] for tx in mining_queue[miner]])
+                avg_verification_time_info = numpy.append(avg_verification_time_info, numpy.array([[time, total_verification_time / total_txs]]), axis=0)
                 for tx in mining_queue[miner]:
                     mined_transactions.add(pickle.dumps(tx[:2]))
             mining_queue[miner] = []
         else:
             print("\nMining unsuccessful")
+    new_row = [time]
+    for v in hash_success_rate.values():
+        if v[1] == 0:
+            new_row.append(0)
+        else:
+            new_row.append(v[0] / v[1])
+    hash_success_rate_info = numpy.append(hash_success_rate_info, numpy.array([new_row]), axis=0)
 
+    time_module.sleep(sleep_time)
     time += 1
 
 fig, ax = plt.subplots()
 for miner in range(num_miners):
     ax.plot(mined_count_info[:, 0], mined_count_info[:, miner + 1], label="{} hashes per second".format(miners_hashes_per_second[miner + num_nodes]))
 ax.set(xlabel='Time (sec)', ylabel='No. of blocks mined', title='No. of blocks mined v/s Time')
+plt.legend(loc='best')
+plt.show()
+
+fig, ax = plt.subplots()
+ax.plot(tx_per_block_info[:, 0], tx_per_block_info[:, 1])
+ax.set(xlabel='Time (sec)', ylabel='Average no. of transactions per block', title='Average no. of transactions per block v/s Time')
+plt.legend(loc='best')
+plt.show()
+
+fig, ax = plt.subplots()
+ax.plot(avg_verification_time_info[:, 0], avg_verification_time_info[:, 1])
+ax.set(xlabel='Time (sec)', ylabel='Average time for verification of a transaction (sec)', title='Average time for verification of a transaction v/s Time')
+plt.legend(loc='best')
+plt.show()
+
+fig, ax = plt.subplots()
+for miner in range(num_miners):
+    ax.plot(hash_success_rate_info[:, 0], hash_success_rate_info[:, miner + 1], label="{} hashes per second".format(miners_hashes_per_second[miner + num_nodes]))
+ax.set(xlabel='Time (sec)', ylabel='Hash success rate', title='Hash success rate v/s Time')
 plt.legend(loc='best')
 plt.show()
